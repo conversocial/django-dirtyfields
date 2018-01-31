@@ -2,7 +2,10 @@
 from django.db.models.signals import post_save, pre_save
 try:
     from picklefield import PickledObjectField
-    import pickle
+    try:
+        import cPickle as pickle
+    except ImportError:
+        import pickle
     pickled_object_field_loaded = True
 except ImportError:
     pickled_object_field_loaded = False
