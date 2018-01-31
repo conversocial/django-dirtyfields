@@ -1,11 +1,11 @@
 # Adapted from http://stackoverflow.com/questions/110803/dirty-fields-in-django
 from django.db.models.signals import post_save, pre_save
-try:
-    from picklefield import PickledObjectField
-    import pickle
-    pickled_object_field_loaded = True
-except ImportError:
-    pickled_object_field_loaded = False
+from copy import deepcopy
+from datetime import date, time, datetime, timedelta, tzinfo
+
+
+IMMUTABLE_TYPES = (int, long, float, basestring, complex, tuple, frozenset,
+                   bytes, date, time, datetime, timedelta, tzinfo)
 
 def reset_instance(instance, *args, **kwargs):
     instance._reset_state()
@@ -19,9 +19,6 @@ class DirtyFieldsMixin(object):
     '''
     def __init__(self, *args, **kwargs):
         super(DirtyFieldsMixin, self).__init__(*args, **kwargs)
-        # Save list of pickle fields so we can pickle their values to properly compare if values have changed
-        self._pickle_fields = [f.column for f in self._meta.fields if isinstance(f, PickledObjectField)] \
-            if pickled_object_field_loaded else []
         post_save.connect(reset_instance, sender=self.__class__,
                           dispatch_uid='%s-DirtyFieldsMixin-sweeper' % self.__class__.__name__)
         self._reset_state()
@@ -37,13 +34,12 @@ class DirtyFieldsMixin(object):
         # Else use field name, as can actually be set to be different from db column name
         else:
             val = getattr(self, f.name)
-        if f.column in self._pickle_fields:
-            val = pickle.dumps(val)
+
+        if not isinstance(val, IMMUTABLE_TYPES):
+            val = deepcopy(val)
         return val
 
-    def _get_value(self, val, col_name, unpickle):
-        if unpickle and col_name in self._pickle_fields:
-            val = pickle.loads(val)
+    def _get_value(self, val, col_name):
         return val
 
     def _as_dict(self):
@@ -52,21 +48,21 @@ class DirtyFieldsMixin(object):
             return {}
         return dict([(f.column, self._get_field_value(f)) for f in self._meta.fields])
 
-    def get_changed_values(self, unpickle=True):
-        return dict([(field, getattr(self, field)) for field in self.get_dirty_fields(unpickle=unpickle).keys()])
+    def get_changed_values(self):
+        return dict([(field, getattr(self, field)) for field in self.get_dirty_fields().keys()])
 
-    def get_dirty_fields(self, unpickle=True):
+    def get_dirty_fields(self):
         if self._deferred:
             raise TypeError('Cant be used with deferred objects')
         new_state = self._as_dict()
-        return dict([(key, self._get_value(value, key, unpickle)) for key, value in self._original_state.iteritems() if value != new_state[key]])
+        return dict([(key, self._get_value(value, key)) for key, value in self._original_state.iteritems() if value != new_state[key]])
 
     def is_dirty(self):
         # in order to be dirty we need to have been saved at least once, so we
         # check for a primary key and we need our dirty fields to not be empty
         if not self.pk:
             return True
-        return {} != self.get_dirty_fields(unpickle=False)
+        return {} != self.get_dirty_fields()
 
     def save_dirty(self):
         '''
@@ -76,7 +72,7 @@ class DirtyFieldsMixin(object):
             self.save()
             updated = 1
         else:
-            changed_values = self.get_changed_values(unpickle=False)
+            changed_values = self.get_changed_values()
             if len(changed_values.keys()) == 0:
                 return False
 
