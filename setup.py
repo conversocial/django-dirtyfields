@@ -11,7 +11,7 @@ def run_test_suite():
 
 setup(
     name = "django-dirtyfields",
-    version = "0.2.3",
+    version = "0.2.4",
     url = 'http://github.com/smn/django-dirtyfields',
     license = 'BSD',
     description = "Tracking dirty fields on a Django model instance",
