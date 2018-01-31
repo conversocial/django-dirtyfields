@@ -1,11 +1,12 @@
 # Adapted from http://stackoverflow.com/questions/110803/dirty-fields-in-django
 from django.db.models.signals import post_save, pre_save
-from copy import deepcopy
+from copy import copy
 from datetime import date, time, datetime, timedelta, tzinfo
 
 
 IMMUTABLE_TYPES = (int, long, float, basestring, complex, tuple, frozenset,
-                   bytes, date, time, datetime, timedelta, tzinfo)
+                   bytes, date, time, datetime, timedelta, tzinfo,
+                   type(None), bool)
 
 def reset_instance(instance, *args, **kwargs):
     instance._reset_state()
@@ -36,7 +37,7 @@ class DirtyFieldsMixin(object):
             val = getattr(self, f.name)
 
         if not isinstance(val, IMMUTABLE_TYPES):
-            val = deepcopy(val)
+            val = copy(val)
         return val
 
     def _get_value(self, val, col_name):
