@@ -36,6 +36,12 @@ class TestDirtyFields(TestCase):
         a.name = 'House cat'
         self.assertEqual(a.get_dirty_fields(), {'name': 'Bobcat'})
 
+    def test_clears_dirty_fields_on_save(self):
+        a = Animal(name='Shark')
+        self.assertEqual(a.get_dirty_fields(), {})
+        a.save()
+        self.assertEqual(a.get_dirty_fields(), {})
+
     def test_makes_copy_of_mutable_field(self):
         a = Animal(name='Duck',
                    list_of_things=['wing', 'bill', 'webbed foot'])

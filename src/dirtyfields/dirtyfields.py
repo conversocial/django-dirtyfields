@@ -24,7 +24,6 @@ class DirtyFieldsMixin(object):
                           dispatch_uid='%s-DirtyFieldsMixin-sweeper' % self.__class__.__name__)
         self._reset_state()
 
-
     def _reset_state(self, *args, **kwargs):
         self._original_state = self._as_dict()
 
@@ -37,10 +36,12 @@ class DirtyFieldsMixin(object):
             val = getattr(self, f.name)
 
         if not isinstance(val, IMMUTABLE_TYPES):
+            # Note, this has an inherent danger in that mutations to sub-objects
+            # would not be detected. For the purposes of this fork that is
+            # an intentional design decision. The use of copy over deepcopy
+            # provides a considerable speed boost on Python 2.7
+            # YOU HAVE BEEN WARNED
             val = copy(val)
-        return val
-
-    def _get_value(self, val, col_name):
         return val
 
     def _as_dict(self):
@@ -56,7 +57,7 @@ class DirtyFieldsMixin(object):
         if self._deferred:
             raise TypeError('Cant be used with deferred objects')
         new_state = self._as_dict()
-        return dict([(key, self._get_value(value, key)) for key, value in self._original_state.iteritems() if value != new_state[key]])
+        return dict([(key, value) for key, value in self._original_state.iteritems() if value != new_state[key]])
 
     def is_dirty(self):
         # in order to be dirty we need to have been saved at least once, so we
