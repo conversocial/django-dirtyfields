@@ -51,7 +51,7 @@ class DirtyFieldsMixin(object):
 
     def _as_dict(self):
         # For relations, saves all fk values too so that we can update fk by id, e.g. obj.foreignkey_id = 4
-        if self._deferred:
+        if self.get_deferred_fields():
             return {}
         return dict([(f.column, self._get_field_value(f)) for f in self._meta.fields])
 
@@ -59,7 +59,7 @@ class DirtyFieldsMixin(object):
         return dict([(field, getattr(self, field)) for field in self.get_dirty_fields(unpickle=unpickle).keys()])
 
     def get_dirty_fields(self, unpickle=True):
-        if self._deferred:
+        if self.get_deferred_fields():
             raise TypeError('Cant be used with deferred objects')
         new_state = self._as_dict()
         return dict([(key, self._get_value(value, key, unpickle)) for key, value in self._original_state.iteritems() if value != new_state[key]])
