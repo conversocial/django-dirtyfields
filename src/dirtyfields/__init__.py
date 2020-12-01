@@ -1,1 +1,3 @@
-from dirtyfields import DirtyFieldsMixin
+from __future__ import absolute_import
+
+from .dirtyfields import DirtyFieldsMixin

@@ -1,4 +1,6 @@
 # Adapted from http://stackoverflow.com/questions/110803/dirty-fields-in-django
+from __future__ import absolute_import
+
 from django.db.models.signals import post_save, pre_save
 try:
     from picklefield import PickledObjectField
@@ -10,8 +12,20 @@ try:
 except ImportError:
     pickled_object_field_loaded = False
 
+
+if hasattr(dict, 'iteritems'):
+    # py2 has dict.iteritems()
+    def iteritems(d):
+        return d.iteritems()
+else:
+    # in py3 dict.items() is an iterator
+    def iteritems(d):
+        return d.items()
+
+
 def reset_instance(instance, *args, **kwargs):
     instance._reset_state()
+
 
 class DirtyFieldsMixin(object):
     '''
@@ -28,7 +42,6 @@ class DirtyFieldsMixin(object):
         post_save.connect(reset_instance, sender=self.__class__,
                           dispatch_uid='%s-DirtyFieldsMixin-sweeper' % self.__class__.__name__)
         self._reset_state()
-
 
     def _reset_state(self, *args, **kwargs):
         self._original_state = self._as_dict()
@@ -62,7 +75,7 @@ class DirtyFieldsMixin(object):
         if self.get_deferred_fields():
             raise TypeError('Cant be used with deferred objects')
         new_state = self._as_dict()
-        return dict([(key, self._get_value(value, key, unpickle)) for key, value in self._original_state.iteritems() if value != new_state[key]])
+        return dict([(key, self._get_value(value, key, unpickle)) for key, value in iteritems(self._original_state) if value != new_state[key]])
 
     def is_dirty(self):
         # in order to be dirty we need to have been saved at least once, so we
@@ -103,7 +116,7 @@ class DirtyFieldsMixin(object):
 
             # Maps db column names back to field names if they differ
             field_map = dict([(f.column, f.name) for f in self._meta.fields if f.db_column])
-            for field_from, field_to in field_map.iteritems():
+            for field_from, field_to in iteritems(field_map):
                 if field_from in changed_values:
                     changed_values[field_to] = changed_values[field_from]
                     del changed_values[field_from]
